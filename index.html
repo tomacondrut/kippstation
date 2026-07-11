@@ -3,149 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PID-Simulation: Kippstation</title>
+    <title>Kippstation: Anlagen-Simulation & PID</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: #f4f4f9; 
-            padding: 20px; 
-            color: #333; 
-            overflow-y: auto; 
+        /* --- CSS VARIABLEN & THEMING --- */
+        :root {
+            --primary: #009B4C;
+            --primary-hover: #007a3c;
+            --bg-color: #f4f4f9;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --border-radius: 8px;
+            --info-color: #2980b9;
         }
-        .container { 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 20px; 
-            padding-bottom: 50px;
-        }
-        .card { 
-            background: white; 
-            padding: 20px; 
-            border-radius: 8px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-        }
-        .controls-grid { 
-            display: grid; 
-            grid-template-columns: 1fr; 
-            gap: 15px; 
-        }
-        .control-group { 
-            display: flex; 
-            flex-direction: column; 
-            background: #fafafa;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #eee;
-        }
-        label { 
-            font-weight: bold; 
-            margin-bottom: 5px; 
-            font-size: 0.9em; 
-        }
-        input[type="range"] { 
-            width: 100%; 
-        }
-        .val-display { 
-            color: #009B4C; 
-            font-weight: bold; 
-            float: right; 
-        }
-        button { 
-            background: #009B4C; 
-            color: white; 
-            border: none; 
-            padding: 10px 15px; 
-            border-radius: 5px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            margin-right: 5px; 
-            margin-top: 5px; 
-        }
-        button:hover { background: #007a3c; }
+        
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg-color); padding: 20px; color: var(--text-main); margin: 0; }
+        .container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-bottom: 50px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: var(--border-radius); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        .header { grid-column: 1 / -1; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .header-text h2 { margin-top: 0; margin-bottom: 5px; color: #2c3e50; }
+        .header-text p { margin: 0; color: #666; }
+        
+        .controls-grid { display: grid; grid-template-columns: 1fr; gap: 12px; max-height: 580px; overflow-y: auto; padding-right: 10px; }
+        .controls-grid::-webkit-scrollbar { width: 8px; }
+        .controls-grid::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        
+        .control-group { display: flex; flex-direction: column; background: #fafafa; padding: 10px 12px; border-radius: 6px; border: 1px solid #e0e0e0; }
+        label { font-weight: 600; margin-bottom: 5px; font-size: 0.85em; color: #444;}
+        input[type="range"], input[type="number"] { width: 100%; cursor: pointer; margin-top: 5px; }
+        input[type="number"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .val-display { color: var(--primary); font-weight: bold; float: right; font-size: 1.1em;}
+        
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 5px; }
+        button { flex: 1; color: white; border: none; padding: 12px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button.play { background: var(--primary); }
+        button.play:hover { background: var(--primary-hover); }
         button.danger { background: #e74c3c; }
         button.danger:hover { background: #c0392b; }
-        button.info { background: #2980b9; }
-        button.info:hover { background: #1f618d; }
-        canvas { 
-            border: 1px solid #ddd; 
-            border-radius: 4px; 
-            width: 100%; 
-        }
-        .header { 
-            grid-column: 1 / -1; 
-            margin-bottom: 10px; 
-        }
-        .chart-wrapper {
-            grid-column: 1 / -1; 
-            height: 450px; 
-            width: 100%;
-            overflow-x: auto;
-            overflow-y: hidden;
-            position: relative;
-            background: white;
-            border-radius: 8px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        #chartScrollContainer {
-            height: 400px;
-            min-width: 100%;
-            padding: 10px;
-        }
-        .bottom-controls {
-            grid-column: 1 / -1;
-        }
+        button.cycle { background: #8e44ad; }
+        button.cycle:hover { background: #732d91; }
+        button.config { background: #2c3e50; }
+        button.config:hover { background: #1a252f; }
+        button.info-btn { background: var(--info-color); flex: 0 0 auto; padding: 10px 20px; font-size: 1.1em; }
+        button.info-btn:hover { background: #1f618d; }
+        
+        canvas { border: 1px solid #ddd; border-radius: 4px; width: 100%; background: #fff; }
+        
+        .chart-wrapper { grid-column: 1 / -1; height: 450px; width: 100%; overflow-x: auto; overflow-y: hidden; position: relative; background: white; border-radius: var(--border-radius); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        #chartScrollContainer { height: 420px; min-width: 100%; padding: 10px; box-sizing: border-box;}
+        .bottom-controls { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+        .zoom-control { width: 350px; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; width: 700px; max-width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; line-height: 1.6; }
+        .modal-content h3 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .modal-content h4 { color: var(--primary); margin-top: 20px; margin-bottom: 5px; }
+        .modal-content ul { padding-left: 20px; margin-top: 5px; }
+        .modal-content li { margin-bottom: 10px; }
+        .modal-close-btn { background: #7f8c8d; margin-top: 20px; width: 100%; }
+        .modal-close-btn:hover { background: #34495e; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <h2>Kippstation: PID & Ventildynamik</h2>
-        <p>Simulation mit einstellbarer Massenträgheit für Leer- und Vollfahrten sowie anpassbarer Diagramm-Skalierung.</p>
+        <div class="header-text">
+            <h2>Kippstation: Dynamik, Sequenzieller Hub & PID-Analyse</h2>
+            <p>Vollständige physikalische Kinematik mit dimensionsgerechtem Sekunden-Zoom.</p>
+        </div>
+        <button id="btnOpenInfo" class="info-btn">ℹ️ Info & Hilfe</button>
     </div>
 
-    <div class="card">
-        <canvas id="simCanvas" width="500" height="400"></canvas>
+    <div class="card" style="position: relative;">
+        <canvas id="simCanvas" width="500" height="450"></canvas>
     </div>
 
-    <div class="card controls-grid" style="max-height: 500px; overflow-y: auto;">
-        <div>
-            <button id="btnPlayPause">Start / Pause</button>
-            <button id="btnReset" class="danger">Simulation Reset</button>
-            <button id="btnValveType" class="info">Ventiltyp: Proportional</button>
+    <div class="card controls-grid">
+        <div class="btn-group">
+            <button id="btnPlayPause" class="play">Anlage Start / Pause</button>
+            <button id="btnCycle" class="cycle">Automatik-Zyklus</button>
+        </div>
+        <div class="btn-group">
+            <button id="btnConfig" class="config">⚙️ Zylinder konfigurieren</button>
+            <button id="btnReset" class="danger">Position auf 0° Reset</button>
         </div>
 
         <div class="control-group">
-            <label>Endlagewinkel (Ziel): <span id="targetVal" class="val-display">45°</span></label>
-            <input type="range" id="targetAngle" min="0" max="60" value="45" step="1">
+            <label>Endlagewinkel (Ziel): <span id="targetVal" class="val-display">50°</span></label>
+            <input type="range" id="targetAngle" min="0" max="60" value="50" step="1">
         </div>
 
         <div class="control-group">
-            <label>Masse (Leer bis Voll): <span id="massVal" class="val-display">5 t</span></label>
-            <input type="range" id="mass" min="5" max="65" value="5" step="1">
+            <label>Soll-Hubzeit für aktuellen Weg: <span id="timeVal" class="val-display">50 s</span></label>
+            <input type="range" id="hubzeit" min="10" max="120" value="50" step="1">
+        </div>
+
+        <div class="control-group" style="background: #eef2f5;">
+            <label>Soll-Volumenstrom Ø (ohne Reserve): <span id="flowVal" class="val-display" style="color: #2980b9;">-- L/min</span></label>
+            <div style="font-size: 0.75em; color: #666; margin-top: 5px;">Wird aus Zylinderintegral & Hubzeit vorberechnet.</div>
+        </div>
+
+        <div class="control-group" style="border-left: 4px solid #f39c12;">
+            <label>Pumpen-Reserve (Überkapazität Faktor): <span id="pumpFactorVal" class="val-display" style="color: #f39c12;">1.5x</span></label>
+            <input type="range" id="pumpFactor" min="1.0" max="3.0" value="1.5" step="0.1">
+        </div>
+
+        <div class="control-group" style="border-left: 4px solid #8e44ad;">
+            <label>Reaktionszeit Druckwaage / Ventil (τ): <span id="tauVal" class="val-display" style="color: #8e44ad;">0.50 s</span></label>
+            <input type="range" id="tau" min="0.0" max="1.0" value="0.50" step="0.05">
         </div>
 
         <div class="control-group">
-            <label>Hubzeit für aktuellen Winkel: <span id="timeVal" class="val-display">15 s</span></label>
-            <input type="range" id="hubzeit" min="5" max="30" value="15" step="1">
+            <label>Masse Aufwärts (Leerfahrt): <span id="massUpVal" class="val-display">10 t</span></label>
+            <input type="range" id="massUp" min="5" max="30" value="10" step="1">
         </div>
 
         <div class="control-group">
-            <label>P-Anteil (Kp - Reaktion): <span id="kpVal" class="val-display">2.0</span></label>
-            <input type="range" id="kp" min="0" max="20" value="2.0" step="0.1">
+            <label>Masse Abwärts (Vollfahrt): <span id="massDownVal" class="val-display">50 t</span></label>
+            <input type="range" id="massDown" min="10" max="70" value="50" step="1">
         </div>
 
         <div class="control-group">
-            <label>I-Anteil (Ki - Genauigkeit): <span id="kiVal" class="val-display">0.1</span></label>
-            <input type="range" id="ki" min="0" max="5" value="0.1" step="0.01">
+            <label>P-Anteil (Kp - Ventilreaktion): <span id="kpVal" class="val-display">4.0</span></label>
+            <input type="range" id="kp" min="0" max="30" value="4.0" step="0.1">
         </div>
-
         <div class="control-group">
-            <label>D-Anteil (Kd - Dämpfung): <span id="kdVal" class="val-display">5.0</span></label>
-            <input type="range" id="kd" min="0" max="50" value="5.0" step="0.5">
+            <label>I-Anteil (Ki - Fehlerkorrektur): <span id="kiVal" class="val-display">0.00</span></label>
+            <input type="range" id="ki" min="0" max="5" value="0.00" step="0.01">
+        </div>
+        <div class="control-group">
+            <label>D-Anteil (Kd - Dämpfung): <span id="kdVal" class="val-display">17.5</span></label>
+            <input type="range" id="kd" min="0" max="50" value="17.5" step="0.5">
         </div>
     </div>
 
@@ -156,293 +145,649 @@
     </div>
 
     <div class="card bottom-controls">
-        <div class="control-group">
-            <label>Diagramm-Skalierung (X-Achse Zoom): <span id="xScaleVal" class="val-display">1.0x</span></label>
-            <input type="range" id="xScale" min="0.1" max="5" value="1.0" step="0.1">
+        <div class="control-group zoom-control">
+            <label>Sichtbares Zeitfenster (Zoom): <span id="xScaleVal" class="val-display">200 s</span></label>
+            <input type="range" id="xScale" min="10" max="200" value="200" step="10">
         </div>
     </div>
 </div>
 
+<div id="cylModal" class="modal">
+    <div class="modal-content" style="width: 350px;">
+        <h3>Zylinder Konfiguration</h3>
+        <div class="control-group">
+            <label>Anzahl Teleskop-Stufen:</label>
+            <input type="number" id="numStages" min="1" max="6" value="5">
+        </div>
+        <div id="stageInputsContainer"></div>
+        <div class="btn-group" style="margin-top: 20px;">
+            <button id="btnSaveConfig" class="play">Speichern</button>
+            <button id="btnCancelConfig" class="danger">Abbrechen</button>
+        </div>
+    </div>
+</div>
+
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <h3>ℹ️ Anlagen- und Regler-Informationen</h3>
+        <p>Diese Simulation modelliert die physikalischen Grenzen einer Schwerlast-Kippstation. Sie dient zur Validierung von Reglerparametern (SPS) bei stark nichtlinearen Systemen.</p>
+        
+        <h4>1. Das Hydraulik-Konzept (Heben vs. Senken)</h4>
+        <p>Beim <strong>Heben</strong> pumpt das System aktiv Öl über eine Druckwaage in den Zylinder. Der maximale Fluss ist durch die Pumpenleistung begrenzt. Beim <strong>Senken</strong> bleibt die Pumpe drucklos; das schwere Eigengewicht drückt das Öl durch ein Proportional-Ablassventil heraus. Dieses Ablaufventil besitzt eine deutlich höhere Durchflusskapazität (hier mit Faktor 2.0 modelliert) als die Pumpe.</p>
+        
+        <h4>2. Die Stellreserve (Pumpen-Überkapazität)</h4>
+        <p>Ist die Pumpe exakt so dimensioniert, dass sie bei 100% Ventilöffnung gerade so die gewünschte Geschwindigkeit erreicht, kann der Regler Fehler (Zurückfallen) nicht mehr ausgleichen. Mit dem Überkapazitäts-Faktor (z.B. 1.5x) liefert die Pumpe mehr als benötigt. Der PID-Regler muss das Ventil im Normalbetrieb drosseln (auf ca. 66%) und hat so noch "Luft nach oben", um nachzuregeln.</p>
+
+        <h4>3. Die PID-Regelanteile (Technischer Hintergrund)</h4>
+        <p>Ein PID-Regler berechnet sein Stellsignal aus drei mathematischen Komponenten, die den aktuellen Regelfehler <em>e(t)</em> bewerten:</p>
+        <ul>
+            <li><strong>P-Anteil (Proportionalglied):</strong> Reagiert streng proportional zur aktuellen Regelabweichung. Er liefert die grobe Stellkraft, hinterlässt bei Störgrößen aber oft eine bleibende Regeldifferenz. Ein reiner P-Regler bemerkt den Geschwindigkeitssprung beim Zylinder-Stufenwechsel nicht sofort, da die absolute Position <em>(der Winkel)</em> nicht schlagartig springt.</li>
+            <li><strong>I-Anteil (Integralglied):</strong> Integriert die Regelabweichung über die Zeit. Bleibt die Anlage knapp unter dem Zielwinkel stehen, wächst der I-Anteil stetig an und zwingt das Ventil langsam weiter auf. Er erzwingt das exakte Erreichen des Zielwerts (Fehler = 0), macht das System bei zu hoher Einstellung aber träge und anfällig für Überschwingen ("Windup").</li>
+            <li><strong>D-Anteil (Differentialglied):</strong> Bewertet die Änderungsgeschwindigkeit der Regelabweichung (<em>de/dt</em>). Er wirkt vorausschauend und als Stoßdämpfer. Schnellt die Zylindergeschwindigkeit beim Stufenwechsel plötzlich hoch, erkennt der D-Anteil diese rasante Änderung sofort und drosselt das Ventil blitzschnell, noch <em>bevor</em> die Anlage weit vom Soll-Kurs abkommen kann.</li>
+        </ul>
+        
+        <button id="btnCloseInfo" class="modal-close-btn">Schließen</button>
+    </div>
+</div>
+
 <script>
+    /* =========================================================================
+       1. GLOBALE VARIABLEN & STATUS
+       ========================================================================= */
     let isRunning = false;
     let time = 0;
     const dt = 0.05; 
     
-    let currentAngle = 0; 
-    let currentSetpoint = 0; 
-    let velocity = 0;
-    let integral = 0;
-    let prevError = 0;
-    let controlOutput = 0;
-    
-    let activeRampAngle = 45; 
-    
-    let valveMode = 'prop'; 
-    let pwmCounter = 0;
-    const pwmPeriod = 0.5; 
+    let state = {
+        currentAngle: 0, 
+        currentSetpoint: 0, 
+        velocity: 0, 
+        integral: 0, 
+        prevError: 0, 
+        controlOutput: 0, 
+        activeStage: 1, 
+        currentQ_Lmin: 0, 
+        currentVcyl_mms: 0, 
+        currentPressure_bar: 0,
+        currentMass: 10
+    };
 
-    const L1 = 4.0; 
-    const L2 = 5.0; 
-    const basePixelsPerPoint = 4; // Interner Basiswert für den Skalierungs-Faktor
+    let startRampAngle = 0; 
+    let targetStrokeAngle = 50; 
+    let userSetTargetAngle = 50; 
+    
+    let numStages = 5;
+    let stageDiameters = [500, 415, 330, 245, 160];
+    let HYD = { areas_m2: [] };
+    
+    let requiredFlow_Lmin = 0;
+    let pumpMaxFlow_Lmin = 200; 
 
-    const targetSlider = document.getElementById('targetAngle');
-    const timeSlider = document.getElementById('hubzeit');
-    const kpSlider = document.getElementById('kp');
-    const kiSlider = document.getElementById('ki');
-    const kdSlider = document.getElementById('kd');
-    const massSlider = document.getElementById('mass');
-    const xScaleSlider = document.getElementById('xScale');
-    const scrollContainer = document.getElementById('chartScrollContainer');
-    const scrollWrapper = document.getElementById('scrollWrapper');
+    let isCycle = false;
+    let cyclePhase = 0; 
+    let cycleTimer = 0;
+
+    const GEO = { 
+        attachR: 5.0,       
+        cylAttachR: 3.333,  
+        cylBaseX: 3.333,    
+        cylBaseY: -0.5,     
+        cgDist: 2.5,        
+        canvasScale: 40     
+    };
+    
+    let cylMinLen = 0; 
+    let cylMaxLen = 0; 
+
+    let DOM = {}; 
+    let chart = null;
+    let ctxSim = null;
+    let cvs = null;
+
+    /* =========================================================================
+       2. INITIALISIERUNG & KINEMATIK-PRECALC
+       ========================================================================= */
+    window.onload = function() {
+        DOM = {
+            target: document.getElementById('targetAngle'), 
+            massUp: document.getElementById('massUp'), massDown: document.getElementById('massDown'),
+            time: document.getElementById('hubzeit'), tau: document.getElementById('tau'),
+            pumpFactor: document.getElementById('pumpFactor'),
+            kp: document.getElementById('kp'), ki: document.getElementById('ki'), kd: document.getElementById('kd'),
+            xScale: document.getElementById('xScale'), scrollCont: document.getElementById('chartScrollContainer'), 
+            scrollWrap: document.getElementById('scrollWrapper')
+        };
+        
+        ctxSim = document.getElementById('simCanvas').getContext('2d');
+        cvs = document.getElementById('simCanvas');
+
+        updateStageAreas();
+        calcCylinderExtents();
+        setupChart();
+        bindEvents();
+        
+        setTarget(parseFloat(DOM.target.value)); 
+        state.currentMass = parseFloat(DOM.massUp.value);
+        
+        adjustChartWidth();
+        drawSimulation();
+        requestAnimationFrame(physicsLoop);
+    };
+
+    function updateStageAreas() {
+        HYD.areas_m2 = stageDiameters.map(d => Math.PI * Math.pow((d/1000)/2, 2));
+    }
+
+    function calcCylinderExtents() {
+        cylMinLen = getCylLenAtAngle(0);
+        cylMaxLen = getCylLenAtAngle(75); 
+    }
+
+    function getCylLenAtAngle(ang_deg) {
+        let rad = ang_deg * Math.PI / 180;
+        let attX = GEO.cylAttachR * Math.cos(rad);
+        let attY = GEO.cylAttachR * Math.sin(rad);
+        let dx = attX - GEO.cylBaseX;
+        let dy = attY - GEO.cylBaseY;
+        return Math.sqrt(dx*dx + dy*dy);
+    }
+
+    function calcVolumeBetween(ang1, ang2) {
+        if (Math.abs(ang2 - ang1) < 0.1) return 0;
+        let v = 0;
+        let steps = 100;
+        let da = (ang2 - ang1) / steps; 
+        
+        for(let i = 0; i < steps; i++) {
+            let a = ang1 + i*da;
+            let stage = getStageForAngle(a);
+            let area = HYD.areas_m2[stage - 1];
+            let rad = a * Math.PI / 180;
+            let attX = GEO.cylAttachR * Math.cos(rad);
+            let attY = GEO.cylAttachR * Math.sin(rad);
+            let len = getCylLenAtAngle(a);
+            
+            let lever = Math.abs(GEO.cylBaseX * attY - attX * GEO.cylBaseY) / len;
+            v += area * lever * (Math.abs(da) * Math.PI / 180);
+        }
+        return v; 
+    }
+
+    function getStageForAngle(ang) {
+        let currentLen = getCylLenAtAngle(ang);
+        let currentStroke = currentLen - cylMinLen;
+        let maxStroke = cylMaxLen - cylMinLen;
+        let strokePerStage = maxStroke / numStages;
+        
+        let s = Math.floor(currentStroke / strokePerStage) + 1;
+        return Math.min(Math.max(s, 1), numStages);
+    }
+
+    function setTarget(newTarget) {
+        startRampAngle = state.currentSetpoint;
+        targetStrokeAngle = newTarget;
+        DOM.target.value = newTarget;
+        
+        let vol = calcVolumeBetween(startRampAngle, targetStrokeAngle);
+        let hubzeit = parseFloat(DOM.time.value);
+        requiredFlow_Lmin = hubzeit > 0 ? (vol / hubzeit) * 60000 : 0;
+        
+        let factor = parseFloat(DOM.pumpFactor.value);
+        pumpMaxFlow_Lmin = Math.max(requiredFlow_Lmin * factor, 10);
+        
+        updateDisplays();
+    }
+
+    /* =========================================================================
+       3. EVENT LISTENER & UI UPDATES
+       ========================================================================= */
+    function bindEvents() {
+        Object.values(DOM).forEach(el => {
+            if(el && el.tagName === 'INPUT' && el.id !== 'targetAngle' && el.id !== 'hubzeit' && el.id !== 'xScale' && el.id !== 'pumpFactor') {
+                el.addEventListener('input', updateDisplays);
+            }
+        });
+
+        DOM.target.addEventListener('input', () => {
+            if (isCycle) stopCycle(false);
+            userSetTargetAngle = parseFloat(DOM.target.value);
+            setTarget(userSetTargetAngle);
+        });
+
+        DOM.time.addEventListener('input', () => {
+            setTarget(targetStrokeAngle); 
+        });
+        
+        DOM.pumpFactor.addEventListener('input', () => {
+            setTarget(targetStrokeAngle); 
+        });
+
+        DOM.xScale.addEventListener('input', () => {
+            document.getElementById('xScaleVal').innerText = DOM.xScale.value + ' s';
+            adjustChartWidth();
+            chart.update('none');
+        });
+
+        document.getElementById('btnPlayPause').addEventListener('click', (e) => {
+            isRunning = !isRunning;
+            e.target.innerText = isRunning ? "Anlage Pause" : "Anlage Start";
+            e.target.style.background = isRunning ? "#f39c12" : "var(--primary)";
+        });
+
+        document.getElementById('btnCycle').addEventListener('click', startCycle);
+        document.getElementById('btnReset').addEventListener('click', resetSimulation);
+
+        document.getElementById('btnConfig').addEventListener('click', () => {
+            document.getElementById('numStages').value = numStages;
+            renderModalInputs();
+            document.getElementById('cylModal').style.display = 'flex';
+        });
+        document.getElementById('btnCancelConfig').addEventListener('click', () => { document.getElementById('cylModal').style.display = 'none'; });
+        document.getElementById('numStages').addEventListener('input', renderModalInputs);
+        document.getElementById('btnSaveConfig').addEventListener('click', saveModalConfig);
+        
+        document.getElementById('btnOpenInfo').addEventListener('click', () => { document.getElementById('infoModal').style.display = 'flex'; });
+        document.getElementById('btnCloseInfo').addEventListener('click', () => { document.getElementById('infoModal').style.display = 'none'; });
+    }
 
     function updateDisplays() {
-        document.getElementById('targetVal').innerText = targetSlider.value + '°';
-        document.getElementById('timeVal').innerText = timeSlider.value + ' s';
-        document.getElementById('kpVal').innerText = parseFloat(kpSlider.value).toFixed(1);
-        document.getElementById('kiVal').innerText = parseFloat(kiSlider.value).toFixed(2);
-        document.getElementById('kdVal').innerText = parseFloat(kdSlider.value).toFixed(1);
-        document.getElementById('massVal').innerText = massSlider.value + ' t';
-        document.getElementById('xScaleVal').innerText = parseFloat(xScaleSlider.value).toFixed(1) + 'x';
+        document.getElementById('targetVal').innerText = DOM.target.value + '°';
+        document.getElementById('massUpVal').innerText = DOM.massUp.value + ' t';
+        document.getElementById('massDownVal').innerText = DOM.massDown.value + ' t';
+        document.getElementById('timeVal').innerText = DOM.time.value + ' s';
+        document.getElementById('tauVal').innerText = parseFloat(DOM.tau.value).toFixed(2) + ' s';
+        document.getElementById('pumpFactorVal').innerText = parseFloat(DOM.pumpFactor.value).toFixed(1) + 'x';
+        document.getElementById('kpVal').innerText = parseFloat(DOM.kp.value).toFixed(1);
+        document.getElementById('kiVal').innerText = parseFloat(DOM.ki.value).toFixed(2);
+        document.getElementById('kdVal').innerText = parseFloat(DOM.kd.value).toFixed(1);
+        document.getElementById('flowVal').innerText = requiredFlow_Lmin > 0 ? requiredFlow_Lmin.toFixed(1) + ' L/min' : '-- L/min';
+        document.getElementById('xScaleVal').innerText = DOM.xScale.value + ' s';
     }
 
-    document.querySelectorAll('input[type=range]').forEach(input => {
-        input.addEventListener('input', updateDisplays);
-    });
+    function startCycle() {
+        isRunning = true;
+        isCycle = true;
+        cyclePhase = 1;
+        cycleTimer = 0;
+        userSetTargetAngle = parseFloat(DOM.target.value); 
+        
+        document.getElementById('btnPlayPause').innerText = "Anlage Pause";
+        document.getElementById('btnPlayPause').style.background = "#f39c12";
+        document.getElementById('btnCycle').innerText = "Zyklus läuft...";
+        document.getElementById('btnCycle').style.background = "#c0392b"; 
+        
+        setTarget(userSetTargetAngle);
+    }
 
-    // Sofortiges Skalieren der X-Achse bei Slider-Bewegung
-    xScaleSlider.addEventListener('input', () => {
-        const scaleFactor = parseFloat(xScaleSlider.value);
-        const requiredWidth = chart.data.labels.length * (scaleFactor * basePixelsPerPoint);
-        scrollContainer.style.width = Math.max(requiredWidth, scrollWrapper.clientWidth) + 'px';
-    });
+    function stopCycle(completed = false) {
+        isCycle = false;
+        cyclePhase = 0;
+        document.getElementById('btnCycle').innerText = "Automatik-Zyklus starten";
+        document.getElementById('btnCycle').style.background = "#8e44ad";
 
-    document.getElementById('btnPlayPause').addEventListener('click', () => {
-        isRunning = !isRunning;
-        document.getElementById('btnPlayPause').innerText = isRunning ? "Pause" : "Start / Pause";
-    });
-
-    document.getElementById('btnValveType').addEventListener('click', (e) => {
-        if (valveMode === 'prop') {
-            valveMode = 'pwm';
-            e.target.innerText = "Ventiltyp: Schaltventil (PWM)";
-            e.target.style.background = "#8e44ad"; 
-        } else {
-            valveMode = 'prop';
-            e.target.innerText = "Ventiltyp: Proportional";
-            e.target.style.background = "#2980b9";
+        if (completed) {
+            isRunning = false;
+            document.getElementById('btnPlayPause').innerText = "Anlage Start";
+            document.getElementById('btnPlayPause').style.background = "var(--primary)";
+            setTarget(userSetTargetAngle); 
         }
-    });
+    }
 
-    document.getElementById('btnReset').addEventListener('click', () => {
+    function resetSimulation() {
         isRunning = false;
-        document.getElementById('btnPlayPause').innerText = "Start / Pause";
+        stopCycle(false);
+        document.getElementById('btnPlayPause').innerText = "Anlage Start";
+        document.getElementById('btnPlayPause').style.background = "var(--primary)";
         
-        currentAngle = 0;
-        currentSetpoint = 0;
-        velocity = 0;
-        integral = 0;
-        prevError = 0;
-        controlOutput = 0;
+        state = { 
+            currentAngle: 0, currentSetpoint: 0, velocity: 0, integral: 0, prevError: 0, 
+            controlOutput: 0, activeStage: 1, currentQ_Lmin: 0, currentVcyl_mms: 0, 
+            currentPressure_bar: 0, currentMass: parseFloat(DOM.massUp.value) 
+        };
         time = 0;
-        pwmCounter = 0;
+        
+        setTarget(userSetTargetAngle);
 
-        updateDisplays();
-
-        chart.data.labels = [];
         chart.data.datasets.forEach(ds => ds.data = []);
-        chart.update();
+        adjustChartWidth(); 
+        chart.update('none'); 
         
-        scrollContainer.style.width = '100%';
-
         drawSimulation();
-    });
+    }
 
-    const ctxChart = document.getElementById('chartCanvas').getContext('2d');
-    const chart = new Chart(ctxChart, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [
-                { label: 'Soll-Winkel (°)', borderColor: '#e74c3c', data: [], fill: false, tension: 0.1, pointRadius: 0 },
-                { label: 'Ist-Winkel (°)', borderColor: '#2980b9', data: [], fill: false, tension: 0.1, pointRadius: 0 },
-                { label: 'Ventil Stellgröße (%)', borderColor: '#009B4C', data: [], fill: false, tension: 0, pointRadius: 0, borderDash: [5, 5], yAxisID: 'y1' }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false, 
-            animation: false, 
-            scales: {
-                x: { title: { display: true, text: 'Zeit (s)' } },
-                y: { title: { display: true, text: 'Winkel (°)' }, min: -5, max: 70 },
-                y1: { title: { display: true, text: 'Ventil (%)' }, position: 'right', min: -110, max: 110 }
-            }
+    /* =========================================================================
+       4. KONFIGURATION MODAL LOGIK
+       ========================================================================= */
+    function renderModalInputs() {
+        const n = parseInt(document.getElementById('numStages').value);
+        const container = document.getElementById('stageInputsContainer');
+        container.innerHTML = '';
+        for(let i=0; i<n; i++) {
+            let val = stageDiameters[i] || Math.max(500 - i*85, 80); 
+            container.innerHTML += `
+                <div class="control-group" style="margin-top: 10px;">
+                    <label>Stufe ${i+1} Durchmesser (mm):</label>
+                    <input type="number" id="stageDia_${i}" value="${val}" step="5">
+                </div>
+            `;
         }
-    });
+    }
 
-    const canvasSim = document.getElementById('simCanvas');
-    const ctxSim = canvasSim.getContext('2d');
+    function saveModalConfig() {
+        numStages = parseInt(document.getElementById('numStages').value);
+        stageDiameters = [];
+        for(let i=0; i<numStages; i++) {
+            stageDiameters.push(parseFloat(document.getElementById(`stageDia_${i}`).value));
+        }
+        updateStageAreas();
+        document.getElementById('cylModal').style.display = 'none';
+        setTarget(targetStrokeAngle); 
+        drawSimulation();
+    }
 
+    /* =========================================================================
+       5. CHART.JS SETUP
+       ========================================================================= */
+    function setupChart() {
+        const ctxChart = document.getElementById('chartCanvas').getContext('2d');
+        chart = new Chart(ctxChart, {
+            type: 'line',
+            data: {
+                datasets: [
+                    { label: 'Soll-Rampe (°)', borderColor: '#e74c3c', data: [], fill: false, tension: 0.1, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+                    { label: 'Ist-Winkel (°)', borderColor: '#2980b9', data: [], fill: false, tension: 0.1, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+                    { label: 'PID-Ventil-Soll (%)', borderColor: '#009B4C', data: [], fill: false, tension: 0, pointRadius: 0, borderDash: [3, 3], borderWidth: 1, yAxisID: 'y1' },
+                    { label: 'Ölfluss Ist (%)', borderColor: 'rgba(142, 68, 173, 0.7)', data: [], fill: true, backgroundColor: 'rgba(142, 68, 173, 0.1)', tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: { 
+                        type: 'linear',
+                        title: { display: true, text: 'Zeit (s)' }, 
+                        min: 0,
+                        grid: { display: true, color: 'rgba(200, 200, 200, 0.4)', drawTicks: false },
+                        ticks: {
+                            stepSize: 5,
+                            includeBounds: false, 
+                            autoSkip: false,      
+                            callback: function(val) {
+                                let step = this.chart.options.scales.x.ticks.stepSize || 5;
+                                return (Math.round(val) % step === 0) ? Math.round(val) : null; 
+                            },
+                            maxRotation: 0
+                        }
+                    },
+                    y: { title: { display: true, text: 'Winkel (°)' }, position: 'left', min: -5, max: 75 },
+                    y1: { title: { display: true, text: 'Signal & Fluss (%)' }, position: 'right', min: -110, max: 110, grid: { drawOnChartArea: false } }
+                }
+            }
+        });
+    }
+
+    function adjustChartWidth() {
+        if(!chart) return;
+        const windowSizeSeconds = parseFloat(DOM.xScale.value);
+        
+        let step = 5;
+        if (windowSizeSeconds <= 20) step = 2;
+        else if (windowSizeSeconds <= 60) step = 5;
+        else if (windowSizeSeconds <= 120) step = 10;
+        else step = 20;
+        
+        chart.options.scales.x.ticks.stepSize = step;
+
+        const containerWidth = DOM.scrollWrap.clientWidth || 1000; 
+        const pxPerSec = containerWidth / windowSizeSeconds;
+        
+        if (time > windowSizeSeconds) {
+            DOM.scrollCont.style.width = (time * pxPerSec) + 'px';
+            chart.options.scales.x.max = time; 
+        } else {
+            DOM.scrollCont.style.width = '100%';
+            chart.options.scales.x.max = windowSizeSeconds;
+        }
+    }
+
+    /* =========================================================================
+       6. PHYSIK-ENGINE (HAUPTSCHLEIFE)
+       ========================================================================= */
+    function physicsLoop() {
+        if (isRunning) {
+            updatePhysics();
+            logData();
+        }
+        drawSimulation();
+        requestAnimationFrame(physicsLoop);
+    }
+
+    function updatePhysics() {
+        const mUp = parseFloat(DOM.massUp.value);
+        const mDown = parseFloat(DOM.massDown.value);
+        const tau = parseFloat(DOM.tau.value);
+        
+        if (isCycle) {
+            if (cyclePhase === 1) { 
+                if (targetStrokeAngle !== userSetTargetAngle) setTarget(userSetTargetAngle);
+                state.currentMass = mUp;
+                if (isAtRestAt(userSetTargetAngle)) { cyclePhase = 2; cycleTimer = 0; }
+            } else if (cyclePhase === 2) { 
+                cycleTimer += dt;
+                state.currentMass = mUp + (mDown - mUp) * Math.min(cycleTimer / 3.0, 1.0);
+                if (cycleTimer > 3.0) cyclePhase = 3;
+            } else if (cyclePhase === 3) { 
+                if (targetStrokeAngle !== 0) setTarget(0);
+                state.currentMass = mDown;
+                if (isAtRestAt(0)) stopCycle(true); 
+            }
+        } else {
+            const t = parseFloat(DOM.target.value);
+            if (t > state.currentSetpoint + 0.5) state.currentMass = mUp;
+            else if (t < state.currentSetpoint - 0.5) state.currentMass = mDown;
+        }
+
+        const hubzeit = parseFloat(DOM.time.value);
+        const strokeDist = Math.abs(targetStrokeAngle - startRampAngle);
+        const rampRate = (hubzeit > 0 && strokeDist > 0) ? (strokeDist / hubzeit) : 0; 
+        
+        if (state.currentSetpoint < targetStrokeAngle) {
+            state.currentSetpoint = Math.min(state.currentSetpoint + rampRate * dt, targetStrokeAngle);
+        } else if (state.currentSetpoint > targetStrokeAngle) {
+            state.currentSetpoint = Math.max(state.currentSetpoint - rampRate * dt, targetStrokeAngle);
+        }
+
+        const Kp = parseFloat(DOM.kp.value);
+        const Ki = parseFloat(DOM.ki.value);
+        const Kd = parseFloat(DOM.kd.value);
+        
+        const error = state.currentSetpoint - state.currentAngle;
+        state.integral = Math.max(Math.min(state.integral + error * dt, 100), -100); 
+        const derivative = (error - state.prevError) / dt;
+        state.prevError = error;
+
+        let pid = (Kp * error) + (Ki * state.integral) + (Kd * derivative);
+        state.controlOutput = Math.max(Math.min(pid, 100), -100); 
+
+        let targetQ_Lmin = 0;
+        let maxLoweringFlow_Lmin = pumpMaxFlow_Lmin * 2.0; 
+        
+        if (state.controlOutput >= 0) {
+            targetQ_Lmin = (state.controlOutput / 100) * pumpMaxFlow_Lmin;
+        } else {
+            targetQ_Lmin = (state.controlOutput / 100) * maxLoweringFlow_Lmin;
+        }
+        
+        if (tau <= 0.01) {
+            state.currentQ_Lmin = targetQ_Lmin;
+        } else {
+            state.currentQ_Lmin += (targetQ_Lmin - state.currentQ_Lmin) * (1 - Math.exp(-dt / tau));
+        }
+
+        const q_m3s = state.currentQ_Lmin / 60000;
+
+        state.activeStage = getStageForAngle(state.currentAngle);
+        const currentArea_m2 = HYD.areas_m2[state.activeStage - 1];
+
+        const targetVcyl_ms = q_m3s / currentArea_m2;
+        state.currentVcyl_mms = targetVcyl_ms * 1000;
+
+        const rad = state.currentAngle * Math.PI / 180;
+        const attX = GEO.cylAttachR * Math.cos(rad);
+        const attY = GEO.cylAttachR * Math.sin(rad); 
+        const dx = attX - GEO.cylBaseX;
+        const dy = attY - GEO.cylBaseY;
+        const cylLength = Math.max(Math.sqrt(dx*dx + dy*dy), 0.01); 
+        const leverArm = Math.max(Math.abs(GEO.cylBaseX * attY - attX * GEO.cylBaseY) / cylLength, 0.1);
+
+        const targetOmega_rad_s = targetVcyl_ms / leverArm;
+        const targetOmega_deg_s = targetOmega_rad_s * (180 / Math.PI);
+
+        const omegaError = targetOmega_deg_s - state.velocity;
+        const hydraulicStiffness = 30.0; 
+        const acceleration = (omegaError * hydraulicStiffness) / state.currentMass;
+        
+        state.velocity += acceleration * dt;
+        state.velocity *= 0.95; 
+        state.currentAngle += state.velocity * dt;
+
+        if (state.currentAngle < 0) { state.currentAngle = 0; state.velocity = 0; }
+        if (state.currentAngle > 75) { state.currentAngle = 75; state.velocity = 0; }
+
+        const weightForce_N = state.currentMass * 1000 * 9.81; 
+        const torqueGrav_Nm = weightForce_N * GEO.cgDist * Math.cos(rad);
+        state.currentPressure_bar = ((torqueGrav_Nm / leverArm) / currentArea_m2) / 100000;
+    }
+
+    function logData() {
+        if(!chart) return;
+        const isAtRest = !isCycle && isAtRestAt(targetStrokeAngle);
+
+        if (!isAtRest) {
+            time += dt;
+            
+            chart.data.datasets[0].data.push({x: time, y: state.currentSetpoint}); 
+            chart.data.datasets[1].data.push({x: time, y: state.currentAngle});
+            chart.data.datasets[2].data.push({x: time, y: state.controlOutput});
+            
+            let q_percent = 0;
+            if (state.currentQ_Lmin >= 0) {
+                q_percent = (state.currentQ_Lmin / pumpMaxFlow_Lmin) * 100;
+            } else {
+                q_percent = (state.currentQ_Lmin / (pumpMaxFlow_Lmin * 2.0)) * 100; 
+            }
+            chart.data.datasets[3].data.push({x: time, y: q_percent});
+
+            adjustChartWidth();
+            chart.update('none'); 
+            
+            DOM.scrollWrap.scrollLeft = DOM.scrollWrap.scrollWidth;
+        }
+    }
+
+    function isAtRestAt(targetAng) {
+        return (Math.abs(state.currentSetpoint - targetAng) < 0.1) && 
+               (Math.abs(state.currentAngle - targetAng) < 0.2) && 
+               (Math.abs(state.velocity) < 0.1);
+    }
+
+    /* =========================================================================
+       7. CANVAS RENDERING
+       ========================================================================= */
     function drawSimulation() {
-        ctxSim.clearRect(0, 0, canvasSim.width, canvasSim.height);
+        if(!ctxSim || !cvs) return;
+        ctxSim.clearRect(0, 0, cvs.width, cvs.height);
         
-        const originX = 100;
-        const originY = 350;
-        const scale = 40; 
+        const originX = 60;
+        const originY = 320; 
+        const sc = GEO.canvasScale;
+        const rad = state.currentAngle * Math.PI / 180;
 
-        ctxSim.beginPath();
-        ctxSim.moveTo(0, originY);
-        ctxSim.lineTo(canvasSim.width, originY);
-        ctxSim.strokeStyle = '#7f8c8d';
-        ctxSim.lineWidth = 4;
-        ctxSim.stroke();
+        ctxSim.fillStyle = '#95a5a6'; ctxSim.fillRect(originX - 20, originY, (GEO.attachR * sc) + 60, 25);
+        ctxSim.strokeStyle = '#7f8c8d'; ctxSim.lineWidth = 2; ctxSim.strokeRect(originX - 20, originY, (GEO.attachR * sc) + 60, 25);
 
-        const encoderX = originX + (L2 * scale);
-        const encoderY = originY;
+        const baseXCanvas = originX + (GEO.cylBaseX * sc);
+        const baseYCanvas = originY - (GEO.cylBaseY * sc); 
+        ctxSim.fillStyle = '#34495e'; ctxSim.beginPath();
+        ctxSim.moveTo(baseXCanvas - 20, originY + 10); ctxSim.lineTo(baseXCanvas + 20, originY + 10);
+        ctxSim.lineTo(baseXCanvas, baseYCanvas); ctxSim.fill();
 
-        const rad = currentAngle * Math.PI / 180;
-        const attachX = originX + (L1 * scale * Math.cos(rad));
-        const attachY = originY - (L1 * scale * Math.sin(rad));
-
-        ctxSim.beginPath();
-        ctxSim.moveTo(encoderX, encoderY);
-        ctxSim.lineTo(attachX, attachY);
-        ctxSim.strokeStyle = '#e67e22';
-        ctxSim.lineWidth = 2;
-        ctxSim.setLineDash([5, 5]);
-        ctxSim.stroke();
-        ctxSim.setLineDash([]); 
-
-        ctxSim.save();
-        ctxSim.translate(originX, originY);
-        ctxSim.rotate(-rad);
+        const attXCanvas = originX + (GEO.cylAttachR * Math.cos(rad) * sc);
+        const attYCanvas = originY - (GEO.cylAttachR * Math.sin(rad) * sc);
         
-        const fillRatio = (parseFloat(massSlider.value) - 5) / 60; 
-        ctxSim.fillStyle = `rgba(${41 - fillRatio*20}, ${128 - fillRatio*60}, ${185 - fillRatio*90}, 0.8)`;
+        const dx = attXCanvas - baseXCanvas; const dy = attYCanvas - baseYCanvas;
+        const len = Math.sqrt(dx*dx + dy*dy); 
+        const ux = dx / len; const uy = dy / len;
+
+        let currentStrokeCanvas = len - (cylMinLen * sc);
+        let maxStrokeCanvas = (cylMaxLen - cylMinLen) * sc;
+        let strokePerStageCanvas = maxStrokeCanvas / numStages;
+
+        ctxSim.beginPath(); 
+        ctxSim.lineWidth = 24;
         ctxSim.strokeStyle = '#2c3e50';
-        ctxSim.lineWidth = 2;
+        let baseEndP = (cylMinLen * sc) / len;
+        ctxSim.moveTo(baseXCanvas, baseYCanvas); 
+        ctxSim.lineTo(baseXCanvas + ux * len * baseEndP, baseYCanvas + uy * len * baseEndP); 
+        ctxSim.stroke();
+
+        let currentDrawStart = baseEndP;
+
+        for (let i = 0; i < numStages; i++) {
+            let stageExtension = 0;
+            if (i < state.activeStage - 1) {
+                stageExtension = strokePerStageCanvas; 
+            } else if (i === state.activeStage - 1) {
+                stageExtension = Math.max(0, currentStrokeCanvas - (i * strokePerStageCanvas)); 
+            }
+
+            let pExtension = stageExtension / len;
+            let currentDrawEnd = currentDrawStart + pExtension;
+
+            ctxSim.beginPath(); 
+            ctxSim.lineWidth = Math.max(20 - i*(14/Math.max(1, numStages-1)), 4);
+            ctxSim.strokeStyle = (i === state.activeStage - 1) ? '#e67e22' : '#7f8c8d';
+            
+            ctxSim.moveTo(baseXCanvas + ux * len * currentDrawStart, baseYCanvas + uy * len * currentDrawStart); 
+            ctxSim.lineTo(baseXCanvas + ux * len * currentDrawEnd, baseYCanvas + uy * len * currentDrawEnd); 
+            ctxSim.stroke();
+
+            currentDrawStart = currentDrawEnd;
+        }
+
+        ctxSim.save(); ctxSim.translate(originX, originY); ctxSim.rotate(-rad);
+        ctxSim.fillStyle = '#7f8c8d'; ctxSim.fillRect(0, -20, GEO.attachR * sc, 20); ctxSim.strokeRect(0, -20, GEO.attachR * sc, 20);
+        ctxSim.fillStyle = '#e74c3c'; ctxSim.beginPath(); ctxSim.arc(GEO.cylAttachR * sc, 0, 6, 0, Math.PI*2); ctxSim.fill();
+
+        const fill = (state.currentMass - 5) / 65; 
+        ctxSim.fillStyle = `rgba(${41 - fill*20}, ${128 - fill*60}, ${185 - fill*90}, 0.85)`;
+        ctxSim.strokeStyle = '#34495e'; ctxSim.lineWidth = 2;
+        ctxSim.fillRect(0, -80, GEO.attachR * sc, 60); ctxSim.strokeRect(0, -80, GEO.attachR * sc, 60);
         
-        const containerHeight = 40;
-        ctxSim.fillRect(0, -containerHeight, L1 * scale, containerHeight); 
-        ctxSim.strokeRect(0, -containerHeight, L1 * scale, containerHeight);
+        ctxSim.fillStyle = '#fff'; ctxSim.font = 'bold 16px Arial';
+        ctxSim.fillText(`${state.currentMass.toFixed(1)} t`, (GEO.attachR * sc)/2 - 15, -45);
         ctxSim.restore();
 
-        ctxSim.beginPath();
-        ctxSim.arc(originX, originY, 8, 0, 2 * Math.PI);
-        ctxSim.fillStyle = '#c0392b';
-        ctxSim.fill();
+        ctxSim.beginPath(); ctxSim.arc(originX, originY, 8, 0, Math.PI*2);
+        ctxSim.fillStyle = '#c0392b'; ctxSim.fill(); ctxSim.lineWidth = 2; ctxSim.strokeStyle = '#fff'; ctxSim.stroke();
 
-        ctxSim.fillStyle = '#2c3e50';
-        ctxSim.fillRect(encoderX - 10, encoderY - 10, 20, 10);
+        ctxSim.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctxSim.fillRect(10, 10, 275, 140);
+        ctxSim.strokeStyle = '#ddd'; ctxSim.strokeRect(10, 10, 275, 140);
 
-        const s = Math.sqrt(L1*L1 + L2*L2 - 2*L1*L2*Math.cos(Math.PI - rad)); 
+        ctxSim.fillStyle = '#333'; ctxSim.font = 'bold 13px Consolas, monospace';
+        let cycleText = isCycle ? `[ZYKLUS P${cyclePhase}]` : '[MANUELL]';
         
-        ctxSim.fillStyle = '#333';
-        ctxSim.font = '14px Arial';
-        ctxSim.fillText(`Ist-Winkel: ${currentAngle.toFixed(1)}°`, 20, 30);
-        ctxSim.fillText(`Seillänge (s): ${s.toFixed(2)} m`, 20, 50);
-        ctxSim.fillText(`Ventil-Ausgang: ${controlOutput.toFixed(1)} %`, 20, 70);
-    }
-
-    function loop() {
-        if (isRunning) {
-            const finalTarget = parseFloat(targetSlider.value);
-            const hubzeit = parseFloat(timeSlider.value);
-            const Kp = parseFloat(kpSlider.value);
-            const Ki = parseFloat(kiSlider.value);
-            const Kd = parseFloat(kdSlider.value);
-            const massTons = parseFloat(massSlider.value);
-            
-            // Interner Basiswert * User-Faktor
-            const scalePx = parseFloat(xScaleSlider.value) * basePixelsPerPoint;
-
-            if (finalTarget > 0) activeRampAngle = finalTarget;
-            const rampRate = activeRampAngle / hubzeit; 
-            
-            if (currentSetpoint < finalTarget) {
-                currentSetpoint += rampRate * dt;
-                if (currentSetpoint > finalTarget) currentSetpoint = finalTarget;
-            } else if (currentSetpoint > finalTarget) {
-                currentSetpoint -= rampRate * dt;
-                if (currentSetpoint < finalTarget) currentSetpoint = finalTarget;
-            }
-
-            const error = currentSetpoint - currentAngle;
-
-            integral += error * dt;
-            integral = Math.max(Math.min(integral, 100), -100); 
-
-            const derivative = (error - prevError) / dt;
-            prevError = error;
-
-            let pidCalc = (Kp * error) + (Ki * integral) + (Kd * derivative);
-            pidCalc = Math.max(Math.min(pidCalc, 100), -100);
-
-            if (valveMode === 'prop') {
-                controlOutput = pidCalc;
-            } else {
-                pwmCounter += dt;
-                if (pwmCounter >= pwmPeriod) pwmCounter = 0;
-                
-                const dutyCycle = Math.abs(pidCalc) / 100;
-                if ((pwmCounter / pwmPeriod) <= dutyCycle && dutyCycle > 0.05) {
-                    controlOutput = pidCalc > 0 ? 100 : -100;
-                } else {
-                    controlOutput = 0;
-                }
-            }
-
-            const massInertia = massTons / 2.0; 
-            const damping = 0.98; 
-            
-            const acceleration = controlOutput / massInertia;
-            velocity += acceleration * dt;
-            velocity *= damping; 
-            
-            currentAngle += velocity * dt;
-
-            if (currentAngle < 0) {
-                currentAngle = 0;
-                velocity = 0;
-            }
-            if (currentAngle > 70) {
-                currentAngle = 70;
-                velocity = 0;
-            }
-
-            const isAtRest = (currentSetpoint === finalTarget) && 
-                             (Math.abs(currentAngle - finalTarget) < 0.1) && 
-                             (Math.abs(velocity) < 0.1);
-
-            if (!isAtRest) {
-                time += dt;
-                chart.data.labels.push(time.toFixed(1));
-                chart.data.datasets[0].data.push(currentSetpoint); 
-                chart.data.datasets[1].data.push(currentAngle);
-                chart.data.datasets[2].data.push(controlOutput);
-
-                const requiredWidth = chart.data.labels.length * scalePx;
-                const wrapperWidth = scrollWrapper.clientWidth;
-                
-                if (requiredWidth > wrapperWidth) {
-                    scrollContainer.style.width = requiredWidth + 'px';
-                    scrollWrapper.scrollLeft = scrollWrapper.scrollWidth;
-                } else {
-                    scrollContainer.style.width = '100%';
-                }
-
-                chart.update();
-            }
-        }
+        ctxSim.fillText(`Status:        ${cycleText}`, 20, 30);
+        ctxSim.fillText(`Ist-Winkel:    ${state.currentAngle.toFixed(1)}°`, 20, 50);
         
-        drawSimulation();
-        requestAnimationFrame(loop);
+        const area_cm2 = (HYD.areas_m2[state.activeStage - 1] * 10000).toFixed(0);
+        ctxSim.fillStyle = '#e67e22'; 
+        ctxSim.fillText(`Aktiv Segment: ${state.activeStage} von ${numStages} (A=${area_cm2} cm²)`, 20, 70);
+        
+        ctxSim.fillStyle = '#009B4C'; ctxSim.fillText(`Ventil-Signal: ${state.controlOutput.toFixed(1)} %`, 20, 90);
+        ctxSim.fillStyle = '#8e44ad'; ctxSim.fillText(`Ölfluss Ist:   ${state.currentQ_Lmin.toFixed(1)} L/min`, 20, 110);
+        ctxSim.fillStyle = '#333';    ctxSim.fillText(`Systemdruck p: ${state.currentPressure_bar.toFixed(1)} bar`, 20, 130);
     }
-
-    updateDisplays();
-    drawSimulation();
-    loop();
-
 </script>
 </body>
 </html>
