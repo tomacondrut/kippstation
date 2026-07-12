@@ -105,8 +105,8 @@
         </div>
 
         <div class="control-group" style="border-left: 4px solid #f39c12;">
-            <label>Pumpen-Reserve (Überkapazität Faktor): <span id="pumpFactorVal" class="val-display" style="color: #f39c12;">1.5x</span></label>
-            <input type="range" id="pumpFactor" min="1.0" max="3.0" value="1.5" step="0.1">
+            <label>Pumpen-Reserve (Überkapazität Faktor): <span id="pumpFactorVal" class="val-display" style="color: #f39c12;">3.0x</span></label>
+            <input type="range" id="pumpFactor" min="1.0" max="5.0" value="3.0" step="0.1">
         </div>
 
         <div class="control-group" style="border-left: 4px solid #8e44ad;">
@@ -125,16 +125,25 @@
         </div>
 
         <div class="control-group">
-            <label>P-Anteil (Kp - Ventilreaktion): <span id="kpVal" class="val-display">4.0</span></label>
-            <input type="range" id="kp" min="0" max="30" value="4.0" step="0.1">
+            <label>P-Anteil (Kp - Ventilreaktion): <span id="kpVal" class="val-display">8.0</span></label>
+            <input type="range" id="kp" min="0" max="30" value="8.0" step="0.1">
         </div>
         <div class="control-group">
             <label>I-Anteil (Ki - Fehlerkorrektur): <span id="kiVal" class="val-display">0.00</span></label>
-            <input type="range" id="ki" min="0" max="5" value="0.00" step="0.01">
+            <input type="range" id="ki" min="0" max="10" value="0.00" step="0.01">
         </div>
         <div class="control-group">
-            <label>D-Anteil (Kd - Dämpfung): <span id="kdVal" class="val-display">17.5</span></label>
-            <input type="range" id="kd" min="0" max="50" value="17.5" step="0.5">
+            <label>D-Anteil (Kd - Dämpfung): <span id="kdVal" class="val-display">13.0</span></label>
+            <input type="range" id="kd" min="0" max="50" value="13.0" step="0.5">
+        </div>
+
+        <div class="control-group" style="background: #eaf2f8; border-color: #d6eaf8;">
+            <label style="color: #2980b9;">Schnell-Auswahl PID-Profile:</label>
+            <div class="btn-group" style="margin-bottom: 0;">
+                <button id="btnPreset1" class="play" style="font-size: 0.8em; padding: 8px;">1: Gedämpft</button>
+                <button id="btnPreset2" class="config" style="font-size: 0.8em; padding: 8px;">2: Linear (P)</button>
+                <button id="btnPreset3" class="danger" style="font-size: 0.8em; padding: 8px;">3: Oszillation</button>
+            </div>
         </div>
     </div>
 
@@ -176,7 +185,7 @@
         <p>Beim <strong>Heben</strong> pumpt das System aktiv Öl über eine Druckwaage in den Zylinder. Der maximale Fluss ist durch die Pumpenleistung begrenzt. Beim <strong>Senken</strong> bleibt die Pumpe drucklos; das schwere Eigengewicht drückt das Öl durch ein Proportional-Ablassventil heraus. Dieses Ablaufventil besitzt eine deutlich höhere Durchflusskapazität (hier mit Faktor 2.0 modelliert) als die Pumpe.</p>
         
         <h4>2. Die Stellreserve (Pumpen-Überkapazität)</h4>
-        <p>Ist die Pumpe exakt so dimensioniert, dass sie bei 100% Ventilöffnung gerade so die gewünschte Geschwindigkeit erreicht, kann der Regler Fehler (Zurückfallen) nicht mehr ausgleichen. Mit dem Überkapazitäts-Faktor (z.B. 1.5x) liefert die Pumpe mehr als benötigt. Der PID-Regler muss das Ventil im Normalbetrieb drosseln (auf ca. 66%) und hat so noch "Luft nach oben", um nachzuregeln.</p>
+        <p>Ist die Pumpe exakt so dimensioniert, dass sie bei 100% Ventilöffnung gerade so die gewünschte Geschwindigkeit erreicht, kann der Regler Fehler (Zurückfallen) nicht mehr ausgleichen. Mit dem Überkapazitäts-Faktor liefert die Pumpe mehr als benötigt. Der PID-Regler muss das Ventil im Normalbetrieb drosseln und hat so noch "Luft nach oben", um nachzuregeln.</p>
 
         <h4>3. Die PID-Regelanteile (Technischer Hintergrund)</h4>
         <p>Ein PID-Regler berechnet sein Stellsignal aus drei mathematischen Komponenten, die den aktuellen Regelfehler <em>e(t)</em> bewerten:</p>
@@ -210,7 +219,7 @@
         currentVcyl_mms: 0, 
         currentPressure_bar: 0,
         currentMass: 10,
-        wasMoving: false,        // Tracking variables for transition lines
+        wasMoving: false,        
         prevStageForLog: 1       
     };
 
@@ -257,7 +266,10 @@
             pumpFactor: document.getElementById('pumpFactor'),
             kp: document.getElementById('kp'), ki: document.getElementById('ki'), kd: document.getElementById('kd'),
             xScale: document.getElementById('xScale'), scrollCont: document.getElementById('chartScrollContainer'), 
-            scrollWrap: document.getElementById('scrollWrapper')
+            scrollWrap: document.getElementById('scrollWrapper'),
+            btnPreset1: document.getElementById('btnPreset1'),
+            btnPreset2: document.getElementById('btnPreset2'),
+            btnPreset3: document.getElementById('btnPreset3')
         };
         
         ctxSim = document.getElementById('simCanvas').getContext('2d');
@@ -356,13 +368,8 @@
             setTarget(userSetTargetAngle);
         });
 
-        DOM.time.addEventListener('input', () => {
-            setTarget(targetStrokeAngle); 
-        });
-        
-        DOM.pumpFactor.addEventListener('input', () => {
-            setTarget(targetStrokeAngle); 
-        });
+        DOM.time.addEventListener('input', () => { setTarget(targetStrokeAngle); });
+        DOM.pumpFactor.addEventListener('input', () => { setTarget(targetStrokeAngle); });
 
         DOM.xScale.addEventListener('input', () => {
             document.getElementById('xScaleVal').innerText = DOM.xScale.value + ' s';
@@ -378,6 +385,11 @@
 
         document.getElementById('btnCycle').addEventListener('click', startCycle);
         document.getElementById('btnReset').addEventListener('click', resetSimulation);
+        
+        // --- PRESET BUTTONS ---
+        DOM.btnPreset1.addEventListener('click', () => applyPreset(8.0, 0.00, 13.0));
+        DOM.btnPreset2.addEventListener('click', () => applyPreset(8.0, 0.00, 0.0));
+        DOM.btnPreset3.addEventListener('click', () => applyPreset(10.0, 5.00, 0.0));
 
         document.getElementById('btnConfig').addEventListener('click', () => {
             document.getElementById('numStages').value = numStages;
@@ -392,6 +404,15 @@
         document.getElementById('btnCloseInfo').addEventListener('click', () => { document.getElementById('infoModal').style.display = 'none'; });
     }
 
+    // Funktion wendet PID Presets an und resettet das Integral, um Sprünge zu vermeiden
+    function applyPreset(p, i, d) {
+        DOM.kp.value = p;
+        DOM.ki.value = i;
+        DOM.kd.value = d;
+        state.integral = 0; // Windup-Reset für weichen Übergang
+        updateDisplays();
+    }
+
     function updateDisplays() {
         document.getElementById('targetVal').innerText = DOM.target.value + '°';
         document.getElementById('massUpVal').innerText = DOM.massUp.value + ' t';
@@ -403,7 +424,6 @@
         document.getElementById('kiVal').innerText = parseFloat(DOM.ki.value).toFixed(2);
         document.getElementById('kdVal').innerText = parseFloat(DOM.kd.value).toFixed(1);
         document.getElementById('flowVal').innerText = requiredFlow_Lmin > 0 ? requiredFlow_Lmin.toFixed(1) + ' L/min' : '-- L/min';
-        document.getElementById('xScaleVal').innerText = DOM.xScale.value + ' s';
     }
 
     function startCycle() {
@@ -489,7 +509,7 @@
     }
 
     /* =========================================================================
-       5. CHART.JS SETUP & CUSTOM PLUGIN FÜR VERTIKALE LINIEN
+       5. CHART.JS SETUP & CUSTOM PLUGIN
        ========================================================================= */
     
     // Custom Plugin zeichnet gestrichelte vertikale Linien bei jedem Stufenübergang
@@ -508,7 +528,6 @@
             ctx.lineWidth = 1;
             ctx.setLineDash([4, 4]);
 
-            // Draw a vertical line for every point logged in the transition dataset
             dataset.data.forEach(point => {
                 const x = xAxis.getPixelForValue(point.x);
                 ctx.beginPath();
@@ -535,7 +554,7 @@
                         borderColor: 'rgba(231, 76, 60, 0.8)', 
                         data: [], 
                         fill: false, 
-                        tension: 0, // Strict straight lines between dots
+                        tension: 0, 
                         pointRadius: 4, 
                         pointBackgroundColor: 'rgba(231, 76, 60, 1)',
                         borderWidth: 1.5, 
@@ -708,22 +727,18 @@
     function logData() {
         if(!chart) return;
         
-        // Check moving boundaries for transition line drawing
         let currentlyMoving = Math.abs(state.velocity) > 0.05 || Math.abs(state.currentSetpoint - targetStrokeAngle) > 0.1;
         let transitionOccurred = false;
 
         if (currentlyMoving && !state.wasMoving) {
-            // Stroke just started
             chart.data.datasets[4].data = [{x: time, y: state.currentAngle}];
             state.prevStageForLog = state.activeStage;
             transitionOccurred = true;
         } else if (currentlyMoving && state.activeStage !== state.prevStageForLog) {
-            // Crossed a cylinder stage
             chart.data.datasets[4].data.push({x: time, y: state.currentAngle});
             state.prevStageForLog = state.activeStage;
             transitionOccurred = true;
         } else if (!currentlyMoving && state.wasMoving) {
-            // Stroke just ended
             chart.data.datasets[4].data.push({x: time, y: state.currentAngle});
             transitionOccurred = true;
         }
@@ -751,7 +766,6 @@
             
             DOM.scrollWrap.scrollLeft = DOM.scrollWrap.scrollWidth;
         } else if (transitionOccurred) {
-            // Ensure the final point renders if it came to a complete stop
             chart.update('none');
         }
     }
