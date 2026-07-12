@@ -60,7 +60,7 @@
         .modal-content h4 { color: var(--primary); margin-top: 20px; margin-bottom: 5px; }
         .modal-content ul { padding-left: 20px; margin-top: 5px; }
         .modal-content li { margin-bottom: 10px; }
-        .modal-close-btn { background: #7f8c8d; margin-top: 20px; width: 100%; }
+        .modal-close-btn { background: #7f8c8d; margin-top: 20px; width: 100%; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; }
         .modal-close-btn:hover { background: #34495e; }
     </style>
 </head>
@@ -70,7 +70,7 @@
     <div class="header">
         <div class="header-text">
             <h2>Kippstation: Dynamik, Sequenzieller Hub & PID-Analyse</h2>
-            <p>Vollständige physikalische Kinematik mit dimensionsgerechtem Sekunden-Zoom.</p>
+            <p>Inklusive visualisierten Zylinder-Stufenübergängen zur Bewertung der Regelabweichung.</p>
         </div>
         <button id="btnOpenInfo" class="info-btn">ℹ️ Info & Hilfe</button>
     </div>
@@ -209,7 +209,9 @@
         currentQ_Lmin: 0, 
         currentVcyl_mms: 0, 
         currentPressure_bar: 0,
-        currentMass: 10
+        currentMass: 10,
+        wasMoving: false,        // Tracking variables for transition lines
+        prevStageForLog: 1       
     };
 
     let startRampAngle = 0; 
@@ -442,7 +444,8 @@
         state = { 
             currentAngle: 0, currentSetpoint: 0, velocity: 0, integral: 0, prevError: 0, 
             controlOutput: 0, activeStage: 1, currentQ_Lmin: 0, currentVcyl_mms: 0, 
-            currentPressure_bar: 0, currentMass: parseFloat(DOM.massUp.value) 
+            currentPressure_bar: 0, currentMass: parseFloat(DOM.massUp.value),
+            wasMoving: false, prevStageForLog: 1
         };
         time = 0;
         
@@ -486,8 +489,37 @@
     }
 
     /* =========================================================================
-       5. CHART.JS SETUP
+       5. CHART.JS SETUP & CUSTOM PLUGIN FÜR VERTIKALE LINIEN
        ========================================================================= */
+    
+    // Custom Plugin zeichnet gestrichelte vertikale Linien bei jedem Stufenübergang
+    const verticalLinePlugin = {
+        id: 'verticalLines',
+        afterDraw: (chart) => {
+            const ctx = chart.ctx;
+            const xAxis = chart.scales.x;
+            const yAxis = chart.scales.y;
+            const dataset = chart.data.datasets[4]; // Der 'Stufen-Übergang' Dataset
+            
+            if(!dataset || !dataset.data.length) return;
+
+            ctx.save();
+            ctx.strokeStyle = 'rgba(231, 76, 60, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+
+            // Draw a vertical line for every point logged in the transition dataset
+            dataset.data.forEach(point => {
+                const x = xAxis.getPixelForValue(point.x);
+                ctx.beginPath();
+                ctx.moveTo(x, yAxis.top);
+                ctx.lineTo(x, yAxis.bottom);
+                ctx.stroke();
+            });
+            ctx.restore();
+        }
+    };
+
     function setupChart() {
         const ctxChart = document.getElementById('chartCanvas').getContext('2d');
         chart = new Chart(ctxChart, {
@@ -497,7 +529,20 @@
                     { label: 'Soll-Rampe (°)', borderColor: '#e74c3c', data: [], fill: false, tension: 0.1, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
                     { label: 'Ist-Winkel (°)', borderColor: '#2980b9', data: [], fill: false, tension: 0.1, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
                     { label: 'PID-Ventil-Soll (%)', borderColor: '#009B4C', data: [], fill: false, tension: 0, pointRadius: 0, borderDash: [3, 3], borderWidth: 1, yAxisID: 'y1' },
-                    { label: 'Ölfluss Ist (%)', borderColor: 'rgba(142, 68, 173, 0.7)', data: [], fill: true, backgroundColor: 'rgba(142, 68, 173, 0.1)', tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1' }
+                    { label: 'Ölfluss Ist (%)', borderColor: 'rgba(142, 68, 173, 0.7)', data: [], fill: true, backgroundColor: 'rgba(142, 68, 173, 0.1)', tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1' },
+                    { 
+                        label: 'Stufen-Übergang', 
+                        borderColor: 'rgba(231, 76, 60, 0.8)', 
+                        data: [], 
+                        fill: false, 
+                        tension: 0, // Strict straight lines between dots
+                        pointRadius: 4, 
+                        pointBackgroundColor: 'rgba(231, 76, 60, 1)',
+                        borderWidth: 1.5, 
+                        borderDash: [5, 5], 
+                        yAxisID: 'y',
+                        showLine: true
+                    }
                 ]
             },
             options: {
@@ -522,7 +567,8 @@
                     y: { title: { display: true, text: 'Winkel (°)' }, position: 'left', min: -5, max: 75 },
                     y1: { title: { display: true, text: 'Signal & Fluss (%)' }, position: 'right', min: -110, max: 110, grid: { drawOnChartArea: false } }
                 }
-            }
+            },
+            plugins: [verticalLinePlugin]
         });
     }
 
@@ -661,6 +707,28 @@
 
     function logData() {
         if(!chart) return;
+        
+        // Check moving boundaries for transition line drawing
+        let currentlyMoving = Math.abs(state.velocity) > 0.05 || Math.abs(state.currentSetpoint - targetStrokeAngle) > 0.1;
+        let transitionOccurred = false;
+
+        if (currentlyMoving && !state.wasMoving) {
+            // Stroke just started
+            chart.data.datasets[4].data = [{x: time, y: state.currentAngle}];
+            state.prevStageForLog = state.activeStage;
+            transitionOccurred = true;
+        } else if (currentlyMoving && state.activeStage !== state.prevStageForLog) {
+            // Crossed a cylinder stage
+            chart.data.datasets[4].data.push({x: time, y: state.currentAngle});
+            state.prevStageForLog = state.activeStage;
+            transitionOccurred = true;
+        } else if (!currentlyMoving && state.wasMoving) {
+            // Stroke just ended
+            chart.data.datasets[4].data.push({x: time, y: state.currentAngle});
+            transitionOccurred = true;
+        }
+        state.wasMoving = currentlyMoving;
+
         const isAtRest = !isCycle && isAtRestAt(targetStrokeAngle);
 
         if (!isAtRest) {
@@ -682,6 +750,9 @@
             chart.update('none'); 
             
             DOM.scrollWrap.scrollLeft = DOM.scrollWrap.scrollWidth;
+        } else if (transitionOccurred) {
+            // Ensure the final point renders if it came to a complete stop
+            chart.update('none');
         }
     }
 
